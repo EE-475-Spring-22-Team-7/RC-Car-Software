@@ -1,31 +1,31 @@
-"C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Core\Src\usart.c"
+"C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Core\Src\usart.c"
 -std=c11
 -ferror-limit=0
 -fbracket-depth=512
 -funsigned-char
 -MD
 -MF
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM\Flash\BrowseInfo\Application\User\Core\usart.pbi.dep
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM\Flash\BrowseInfo\Application\User\Core\usart.pbi.dep
 -o
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM\Flash\BrowseInfo\Application\User\Core\usart.pbi
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM\Flash\BrowseInfo\Application\User\Core\usart.pbi
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Core\Src
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Core\Src
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Core/Inc\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Core/Inc\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Drivers/STM32F4xx_HAL_Driver/Inc\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Drivers/STM32F4xx_HAL_Driver/Inc\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Middlewares/Third_Party/FreeRTOS/Source/include\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Middlewares/Third_Party/FreeRTOS/Source/include\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Middlewares/Third_Party/FreeRTOS/Source/portable/IAR/ARM_CM4F\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Middlewares/Third_Party/FreeRTOS/Source/portable/IAR/ARM_CM4F\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Drivers/CMSIS/Device/ST/STM32F4xx/Include\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Drivers/CMSIS/Device/ST/STM32F4xx/Include\
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM/../Drivers/CMSIS/Include\
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM/../Drivers/CMSIS/Include\
 -I
 C:\Program Files\IAR Systems\Embedded Workbench 9.0\arm\inc\c\aarch32
 -I
@@ -33,21 +33,21 @@ C:\Program Files\IAR Systems\Embedded Workbench 9.0\arm\inc
 -I
 C:\Program Files\IAR Systems\Embedded Workbench 9.0\arm\inc\c
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Core\Inc
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Core\Inc
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Drivers\STM32F4xx_HAL_Driver\Inc
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Drivers\STM32F4xx_HAL_Driver\Inc
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Drivers\STM32F4xx_HAL_Driver\Inc\Legacy
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Drivers\STM32F4xx_HAL_Driver\Inc\Legacy
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Middlewares\Third_Party\FreeRTOS\Source\include
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Middlewares\Third_Party\FreeRTOS\Source\include
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Middlewares\Third_Party\FreeRTOS\Source\portable\IAR\ARM_CM4F
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Middlewares\Third_Party\FreeRTOS\Source\portable\IAR\ARM_CM4F
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Drivers\CMSIS\Device\ST\STM32F4xx\Include
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Drivers\CMSIS\Device\ST\STM32F4xx\Include
 -I
-C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\Drivers\CMSIS\Include
+C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\Drivers\CMSIS\Include
 -D__CHAR_BITS__=8
 -D__CHAR_MAX__=0xff
 -D__CHAR_MIN__=0

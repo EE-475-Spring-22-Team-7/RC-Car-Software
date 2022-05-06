@@ -23,9 +23,9 @@
 
 if ($debugfile -eq "")
 {
-& "C:\Program Files\IAR Systems\Embedded Workbench 9.0\common\bin\cspybat" -f "C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM\settings\TestingInitialization_STM32F4.Flash.general.xcl" --backend -f "C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM\settings\TestingInitialization_STM32F4.Flash.driver.xcl" 
+& "C:\Program Files\IAR Systems\Embedded Workbench 9.0\common\bin\cspybat" -f "C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM\settings\TestingInitialization_STM32F4.Flash.general.xcl" --backend -f "C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM\settings\TestingInitialization_STM32F4.Flash.driver.xcl" 
 }
 else
 {
-& "C:\Program Files\IAR Systems\Embedded Workbench 9.0\common\bin\cspybat" -f "C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM\settings\TestingInitialization_STM32F4.Flash.general.xcl" --debug_file=$debugfile --backend -f "C:\Users\kevin\Documents\OneDrive\Documents\CSE 475 EMBEDDED SYSTEMS\TestingInitialization_STM32F4\TestingInitialization_STM32F4\EWARM\settings\TestingInitialization_STM32F4.Flash.driver.xcl" 
+& "C:\Program Files\IAR Systems\Embedded Workbench 9.0\common\bin\cspybat" -f "C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM\settings\TestingInitialization_STM32F4.Flash.general.xcl" --debug_file=$debugfile --backend -f "C:\Users\Sam's Custom Pc\Documents\GitHub\RC-Car-Software-2\EWARM\settings\TestingInitialization_STM32F4.Flash.driver.xcl" 
 }

@@ -50,15 +50,8 @@
 osThreadId defaultTaskHandle;
 osMessageQId myExampleQueue01Handle;
 
-osThreadId ledToggle_1_TaskHandle;
-osThreadId ledToggle_2_TaskHandle;
-osThreadId ledToggle_3_TaskHandle;
-
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-void ledToggle1(void const * argument);
-void ledToggle2(void const * argument);
-void ledToggle3(void const * argument);
 unsigned int bit_toggle(unsigned int, int);
 /* USER CODE END FunctionPrototypes */
 
@@ -120,14 +113,6 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
-  osThreadDef(LED_Toggle1, ledToggle1, osPriorityNormal, 0, 128);
-  ledToggle_1_TaskHandle = osThreadCreate(osThread(LED_Toggle1),NULL);
-  
-  osThreadDef(LED_Toggle2, ledToggle2, osPriorityNormal, 0, 128);
-  ledToggle_2_TaskHandle = osThreadCreate(osThread(LED_Toggle2),NULL);
-  
-  osThreadDef(LED_Toggle3, ledToggle3, osPriorityNormal, 0, 128);
-  ledToggle_3_TaskHandle = osThreadCreate(osThread(LED_Toggle3),NULL); 
   /* USER CODE END RTOS_THREADS */
 
 }
@@ -153,40 +138,6 @@ void StartDefaultTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-
-void ledToggle1(void const * argument)
-{
-  /* LED Initialization */
-  /* See 'gpio.c' for GPIO initialization */
-  
-  
-  while(1)
-  {
-    HAL_GPIO_TogglePin(LED_1_GPIO_Port,LED_1_Pin);
-    osDelay(500);
-  }
-}
-
-void ledToggle2(void const * argument)
-{
-  
-  while(1)
-  {
-    HAL_GPIO_TogglePin(LED_2_GPIO_Port,LED_2_Pin);
-    osDelay(100);
-  }
-}
-
-void ledToggle3(void const * argument)
-{
-
-  while(1)
-  {
-    HAL_GPIO_TogglePin(LED_3_GPIO_Port,LED_3_Pin);
-    osDelay(1200);
-  }
-}
-
 
 /* Utilities */
 // bit toggle

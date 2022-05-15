@@ -25,12 +25,18 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+enum ir_state
+{
+  idle,
+  object_ahead,
+  object_side,
+  orient_vehicle,
+}ir_sensor_state;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -45,14 +51,19 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+bool front_sensor_triggered;
+bool fall_sensor_triggered;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
+osThreadId ir_sensor_TaskHandle;
+osThreadId ir_sensor_state_TaskHandle;
 osMessageQId myExampleQueue01Handle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 unsigned int bit_toggle(unsigned int, int);
+void ir_sensor_detection(void const * argument);
+void ir_sensor_state_machine(void const* argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
@@ -82,7 +93,9 @@ void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackTy
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
-
+  front_sensor_triggered = false;
+  fall_sensor_triggered = false;
+  ir_sensor_state = idle;
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -113,6 +126,10 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  osThreadDef(IR_sensor_checking, ir_sensor_detection, osPriorityNormal, 0, 128);
+  ir_sensor_TaskHandle = osThreadCreate(osThread(IR_sensor_checking),NULL);
+  osThreadDef(IR_sensor_state_changes, ir_sensor_state_machine, osPriorityNormal, 0, 128);
+  ir_sensor_TaskHandle = osThreadCreate(osThread(IR_sensor_state_changes),NULL);
   /* USER CODE END RTOS_THREADS */
 
 }
@@ -138,7 +155,47 @@ void StartDefaultTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void ir_sensor_detection(void const * argument)
+{
+  while(1)
+  {
+    fall_sensor_triggered = !HAL_GPIO_ReadPin(IR_DOWN_GPIO_Port, IR_DOWN_Pin);
+    front_sensor_triggered = fall_sensor_triggered
+                            & HAL_GPIO_ReadPin(IR_FRONT_GPIO_Port, IR_FRONT_Pin)
+                            & HAL_GPIO_ReadPin(IR_FRONT_L_GPIO_Port, IR_FRONT_L_Pin)
+                            & HAL_GPIO_ReadPin(IR_FRONT_R_GPIO_Port, IR_FRONT_R_Pin);
+    osDelay(1);
+  }
+}
 
+void ir_sensor_state_machine(void const * argument)
+{
+  while(1)
+  {
+    switch(ir_sensor_state)
+    {
+      case idle:
+        if(front_sensor_triggered)
+        {
+          if(fall_sensor_triggered)
+          {
+            // HALT
+          } else {
+            ir_sensor_state = object_ahead;
+          }
+        }
+      case object_ahead:
+        // HALT
+        // TODO: Rotate function
+      case object_side:
+        // TODO:
+      case orient_vehicle:
+        // TODO
+
+
+    }
+  }
+}
 /* Utilities */
 // bit toggle
 unsigned int bit_toggle(unsigned int reg, int bitnum){

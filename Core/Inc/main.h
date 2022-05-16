@@ -42,6 +42,13 @@ typedef enum direction{
   HALTED
 }direction;
 
+typedef enum veh_object_detect_state{
+  IDLE,
+  OBJECT_AHEAD,
+  OBJECT_SIDE,
+  ORIENT_VEH
+} obj_detection_state;
+
 typedef enum veh_direction{
   INVALID_COMMAND,
   MOVE_FORWARD,

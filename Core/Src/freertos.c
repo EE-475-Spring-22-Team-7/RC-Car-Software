@@ -65,10 +65,12 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+bool front_sensor_triggered = false;
+bool fall_sensor_triggered = false;
 sys_state system_status = NORMAL;
 
 vehicle_direction vehicle_motion_dir = HALT;
-
+obj_detection_state obj_detect_state = IDLE;
 motors leftmotors;
 motors rightmotors;
 
@@ -96,6 +98,8 @@ int8_t isMeasured = 0;
 bool VCmessage_received = false;
 uint8_t data_receive[12];
 
+osThreadId ir_sensor_TaskHandle;
+osThreadId ir_sensor_state_TaskHandle;
 /* USER CODE END Variables */
 osThreadId defaultTaskHandle;
 osThreadId vehicleMotionHandle;
@@ -132,6 +136,8 @@ void read_EncoderSensors(float * left, float * right);
 void leds_flash(led_color color, uint32_t pulses,uint32_t delay);
 uint32_t VCmessages_8to32bit(uint8_t messages[],int8_t start_ind, int8_t stop_ind);
 
+void ir_sensor_detection(void const * argument);
+void ir_sensor_state_machine(void const* argument);
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void const * argument);
@@ -210,6 +216,10 @@ void MX_FREERTOS_Init(void) {
   myCommandQueue02Handle = osMessageCreate(osMessageQ(myCommandQueue02), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
+  osThreadDef(IR_sensor_checking, ir_sensor_detection, osPriorityNormal, 0, 128);
+  ir_sensor_TaskHandle = osThreadCreate(osThread(IR_sensor_checking),NULL);
+  osThreadDef(IR_sensor_state_changes, ir_sensor_state_machine, osPriorityNormal, 0, 128);
+  ir_sensor_TaskHandle = osThreadCreate(osThread(IR_sensor_state_changes),NULL);
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
 
@@ -615,7 +625,68 @@ void StartpidEncoderTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void ir_sensor_detection(void const * argument)
+{
+  for(;;)
+  {
+    fall_sensor_triggered = HAL_GPIO_ReadPin(IR_DOWN_GPIO_Port, IR_DOWN_Pin);
+    front_sensor_triggered = fall_sensor_triggered
+                            | (HAL_GPIO_ReadPin(IR_FRONT_GPIO_Port, IR_FRONT_Pin) == false)
+                            | (HAL_GPIO_ReadPin(IR_FRONT_L_GPIO_Port, IR_FRONT_L_Pin) == false)   
+                            | (HAL_GPIO_ReadPin(IR_FRONT_R_GPIO_Port, IR_FRONT_R_Pin) == false);
+    
+    osDelay(10);
+  }
+}
 
+void ir_sensor_state_machine(void const * argument)
+{
+  for(;;)
+  {
+    switch(obj_detect_state)
+    {
+      case IDLE:
+        if(front_sensor_triggered)
+        {
+          system_status = AI;
+          if(fall_sensor_triggered)
+          {
+            set_vehicle_motion(&leftmotors,&rightmotors,HALT);
+          } else {
+            obj_detect_state = OBJECT_AHEAD;
+            osThreadSuspend(demoForwardHandle);
+          }
+        } else 
+        {
+          system_status = NORMAL;
+        }
+        break;
+      case OBJECT_AHEAD:
+        // HALT
+        set_vehicle_motion(&leftmotors,&rightmotors,HALT);
+        // Currently just move back to IDLE state
+        if(front_sensor_triggered == false)
+        {
+          obj_detect_state = IDLE;
+          system_status = NORMAL;
+          osThreadResume(demoForwardHandle);
+        }
+        break;
+        // TODO: Rotate function
+      case OBJECT_SIDE:
+        // TODO:
+        break;
+      case ORIENT_VEH:
+        // TODO
+        break;
+      default:
+        break;
+
+
+    }
+    osDelay(100);
+  }
+}
 
 
 

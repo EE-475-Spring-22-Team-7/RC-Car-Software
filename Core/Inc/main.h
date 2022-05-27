@@ -36,7 +36,57 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum direction{
+  FORWARD,
+  REVERSE,
+  HALTED
+}direction;
 
+typedef enum veh_direction{
+  INVALID_COMMAND,
+  MOVE_FORWARD,
+  MOVE_REVERSE,
+  ROTATE_RIGHT,
+  ROTATE_LEFT,
+  U_TURN,
+  HALT
+} vehicle_direction;
+  
+typedef enum led_color {
+  RED,
+  GREEN,
+  ORANGE
+} led_color;
+
+typedef enum vehicle_speed {
+  INVALID_SPEED,
+  SLOW,
+  MEDIUM,
+  FAST,
+  NO_UPDATE
+} vehicle_speed;
+
+typedef struct {
+  TIM_HandleTypeDef *htim;
+  uint32_t motor_Channel;
+  uint16_t pulse;
+  direction motors_dir;
+  GPIO_TypeDef * motors_GPIOx;
+  uint16_t H1_GPIO_Pin;
+  uint16_t H2_GPIO_Pin;
+} motors;
+
+typedef struct {
+  vehicle_direction command_direction;
+  uint16_t command_distance;
+  vehicle_speed command_speed;
+} command_HandleTypeDef;
+
+typedef enum sys_state {
+  FAULT,
+  NORMAL,
+  AI
+} sys_state;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -85,20 +135,24 @@ void Error_Handler(void);
 #define SPI1_MISO_GPIO_Port GPIOA
 #define SPI1_MOSI_Pin GPIO_PIN_7
 #define SPI1_MOSI_GPIO_Port GPIOA
-#define MOTOR1_PWM_TIM3_CH3_Pin GPIO_PIN_0
-#define MOTOR1_PWM_TIM3_CH3_GPIO_Port GPIOB
-#define MOTOR2_PWM_TIM3_CH4_Pin GPIO_PIN_1
-#define MOTOR2_PWM_TIM3_CH4_GPIO_Port GPIOB
+#define MOTORS_PWM_LEFT_Pin GPIO_PIN_0
+#define MOTORS_PWM_LEFT_GPIO_Port GPIOB
+#define MOTORS_PWM_RIGHT_Pin GPIO_PIN_1
+#define MOTORS_PWM_RIGHT_GPIO_Port GPIOB
 #define BOOT1_Pin GPIO_PIN_2
 #define BOOT1_GPIO_Port GPIOB
-#define MOTORS_LEFT_HBRIDGE_Pin GPIO_PIN_7
-#define MOTORS_LEFT_HBRIDGE_GPIO_Port GPIOE
-#define MOTORS_RIGHT_HBRIDGE_Pin GPIO_PIN_8
-#define MOTORS_RIGHT_HBRIDGE_GPIO_Port GPIOE
+#define MOTORS_LEFT_H1_Pin GPIO_PIN_7
+#define MOTORS_LEFT_H1_GPIO_Port GPIOE
+#define MOTORS_LEFT_H2_Pin GPIO_PIN_8
+#define MOTORS_LEFT_H2_GPIO_Port GPIOE
 #define ENCODER1_Pin GPIO_PIN_9
 #define ENCODER1_GPIO_Port GPIOE
 #define ENCODER2_Pin GPIO_PIN_10
 #define ENCODER2_GPIO_Port GPIOE
+#define MOTORS_RIGHT_H1_Pin GPIO_PIN_12
+#define MOTORS_RIGHT_H1_GPIO_Port GPIOE
+#define MOTORS_RIGHT_H2_Pin GPIO_PIN_13
+#define MOTORS_RIGHT_H2_GPIO_Port GPIOE
 #define CLK_IN_Pin GPIO_PIN_10
 #define CLK_IN_GPIO_Port GPIOB
 #define IR_RIGHT_B_Pin GPIO_PIN_12
@@ -125,8 +179,6 @@ void Error_Handler(void);
 #define LD5_GPIO_Port GPIOD
 #define LD6_Pin GPIO_PIN_15
 #define LD6_GPIO_Port GPIOD
-#define MOTOR4_PWM_TIM3_CH1_Pin GPIO_PIN_6
-#define MOTOR4_PWM_TIM3_CH1_GPIO_Port GPIOC
 #define I2S3_MCK_Pin GPIO_PIN_7
 #define I2S3_MCK_GPIO_Port GPIOC
 #define VBUS_FS_Pin GPIO_PIN_9
@@ -143,14 +195,18 @@ void Error_Handler(void);
 #define I2S3_SCK_GPIO_Port GPIOC
 #define I2S3_SD_Pin GPIO_PIN_12
 #define I2S3_SD_GPIO_Port GPIOC
+#define GREEN_LED_Pin GPIO_PIN_0
+#define GREEN_LED_GPIO_Port GPIOD
+#define ORANGE_LED_Pin GPIO_PIN_1
+#define ORANGE_LED_GPIO_Port GPIOD
+#define RED_LED_Pin GPIO_PIN_2
+#define RED_LED_GPIO_Port GPIOD
 #define Audio_RST_Pin GPIO_PIN_4
 #define Audio_RST_GPIO_Port GPIOD
 #define OTG_FS_OverCurrent_Pin GPIO_PIN_5
 #define OTG_FS_OverCurrent_GPIO_Port GPIOD
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
-#define MOTOR3_PWM_TIM_CH2_Pin GPIO_PIN_5
-#define MOTOR3_PWM_TIM_CH2_GPIO_Port GPIOB
 #define Audio_SCL_Pin GPIO_PIN_6
 #define Audio_SCL_GPIO_Port GPIOB
 #define WhatupsFucker_Pin GPIO_PIN_7

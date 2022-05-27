@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "cmsis_os.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +59,7 @@
 extern TIM_HandleTypeDef htim1;
 
 /* USER CODE BEGIN EV */
+extern osSemaphoreId VCBinarySem01Handle;
 
 /* USER CODE END EV */
 
@@ -174,5 +176,14 @@ void TIM1_UP_TIM10_IRQHandler(void)
 }
 
 /* USER CODE BEGIN 1 */
+/** 
+  * Releases a semaphore to the Voice Command task when 
+  * a message is received from the BT module
+ */
+void USART2_IRQHandler(void)
+{
+  osSemaphoreRelease(VCBinarySem01Handle);
+}
+
 
 /* USER CODE END 1 */

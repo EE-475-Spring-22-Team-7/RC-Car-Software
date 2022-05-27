@@ -43,13 +43,28 @@ typedef enum direction{
 }direction;
 
 typedef enum veh_direction{
-  HALT,
+  INVALID_COMMAND,
   MOVE_FORWARD,
   MOVE_REVERSE,
   ROTATE_RIGHT,
-  ROTATE_LEFT
+  ROTATE_LEFT,
+  U_TURN,
+  HALT
 } vehicle_direction;
   
+typedef enum led_color {
+  RED,
+  GREEN,
+  ORANGE
+} led_color;
+
+typedef enum vehicle_speed {
+  INVALID_SPEED,
+  SLOW,
+  MEDIUM,
+  FAST,
+  NO_UPDATE
+} vehicle_speed;
 
 typedef struct {
   TIM_HandleTypeDef *htim;
@@ -61,10 +76,15 @@ typedef struct {
   uint16_t H2_GPIO_Pin;
 } motors;
 
+typedef struct {
+  vehicle_direction command_direction;
+  uint16_t command_distance;
+  vehicle_speed command_speed;
+} command_HandleTypeDef;
 
 typedef enum sys_state {
-  NORMAL,
   FAULT,
+  NORMAL,
   AI
 } sys_state;
 /* USER CODE END ET */
@@ -175,6 +195,12 @@ void Error_Handler(void);
 #define I2S3_SCK_GPIO_Port GPIOC
 #define I2S3_SD_Pin GPIO_PIN_12
 #define I2S3_SD_GPIO_Port GPIOC
+#define GREEN_LED_Pin GPIO_PIN_0
+#define GREEN_LED_GPIO_Port GPIOD
+#define ORANGE_LED_Pin GPIO_PIN_1
+#define ORANGE_LED_GPIO_Port GPIOD
+#define RED_LED_Pin GPIO_PIN_2
+#define RED_LED_GPIO_Port GPIOD
 #define Audio_RST_Pin GPIO_PIN_4
 #define Audio_RST_GPIO_Port GPIOD
 #define OTG_FS_OverCurrent_Pin GPIO_PIN_5

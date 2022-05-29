@@ -67,7 +67,10 @@
 /* USER CODE BEGIN Variables */
 bool front_sensor_triggered = false;
 bool fall_sensor_triggered = false;
+bool left_sensor_triggered = false;
+bool right_sensor_triggered = false;
 sys_state system_status = NORMAL;
+car_direction = 0; // when direction == 0 we are heading in correct direction
 
 vehicle_direction vehicle_motion_dir = HALT;
 obj_detection_state obj_detect_state = IDLE;
@@ -76,6 +79,7 @@ motors rightmotors;
 
 command_HandleTypeDef command;
 command_HandleTypeDef * ptcommand;
+command_HandleTypeDef AIcommand;
 
 uint16_t default_rot_pulse      = 15999;
 uint16_t rot_time               = 400;
@@ -634,6 +638,10 @@ void ir_sensor_detection(void const * argument)
                             | (HAL_GPIO_ReadPin(IR_FRONT_GPIO_Port, IR_FRONT_Pin) == false)
                             | (HAL_GPIO_ReadPin(IR_FRONT_L_GPIO_Port, IR_FRONT_L_Pin) == false)   
                             | (HAL_GPIO_ReadPin(IR_FRONT_R_GPIO_Port, IR_FRONT_R_Pin) == false);
+    left_sensor_triggered = (HAL_GPIO_ReadPin(IR_LEFT_F_GPIO_Port, IR_LEFT_F_Pin) == false) 
+                            | (HAL_GPIO_ReadPin(IR_LEFT_B_GPIO_Port, IR_LEFT_B_Pin) == false);
+    right_sensor_triggered = (HAL_GPIO_ReadPin(IR_RIGHT_F_GPIO_Port, IR_RIGHT_F_Pin) == false) 
+                            | (HAL_GPIO_ReadPin(IR_RIGHT_B_GPIO_Port, IR_RIGHT_B_Pin) == false);
     
     osDelay(10);
   }
@@ -643,48 +651,91 @@ void ir_sensor_state_machine(void const * argument)
 {
   for(;;)
   {
-    switch(obj_detect_state)
+    // if we are rotating then skip the object detection state until we aren't rotating
+    if(leftmotors.motors_dir == rightmotors.motors_dir)
     {
-      case IDLE:
-        if(front_sensor_triggered)
-        {
-          system_status = AI;
-          if(fall_sensor_triggered)
+      switch(obj_detect_state)
+      {
+        case IDLE:
+          if(front_sensor_triggered)
           {
-            set_vehicle_motion(&leftmotors,&rightmotors,HALT);
-          } else {
-            obj_detect_state = OBJECT_AHEAD;
-            osThreadSuspend(demoForwardHandle);
+            system_status = AI;
+            if(fall_sensor_triggered)
+            {
+              set_vehicle_motion(&leftmotors,&rightmotors,HALT);
+            } else {
+              obj_detect_state = OBJECT_AHEAD;
+              osThreadSuspend(demoForwardHandle);
+            }
+          } else 
+          {
+            system_status = NORMAL;
+            osThreadResume(demoForwardHandle);
           }
-        } else 
-        {
-          system_status = NORMAL;
-        }
-        break;
-      case OBJECT_AHEAD:
-        // HALT
-        set_vehicle_motion(&leftmotors,&rightmotors,HALT);
-        // Currently just move back to IDLE state
-        if(front_sensor_triggered == false)
-        {
-          obj_detect_state = IDLE;
-          system_status = NORMAL;
-          osThreadResume(demoForwardHandle);
-        }
-        break;
-        // TODO: Rotate function
-      case OBJECT_SIDE:
-        // TODO:
-        break;
-      case ORIENT_VEH:
-        // TODO
-        break;
-      default:
-        break;
+          break;
+        case OBJECT_AHEAD:
+          // HALT
+          set_vehicle_motion(&leftmotors,&rightmotors,HALT);
+          // Currently just move back to IDLE state
+          if(front_sensor_triggered == false)
+          {
+            obj_detect_state = IDLE;
+          } else 
+          {
+            if(right_sensor_triggered)
+            {
+              // ROTATE LEFT
+              set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_LEFT);
+              veh_direction -= 1;
+            } else
+            {
+              // ROTATE RIGHT
+              set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_RIGHT);
+              veh_direction += 1;
+            }
+            obj_detect_state = OBJECT_SIDE;
+          }
+          break;
+        case OBJECT_SIDE:
+          if(front_sensor_triggered)
+          {
+            obj_detect_state = OBJECT_AHEAD;
+          } else 
+          {
+            set_vehicle_motion(&leftmotors,&rightmotors, MOVE_FORWARD);
+            // if no sensor is triggered orient the vehicle
+            if(left_sensor_triggered == false && right_sensor_triggered == false)
+            {
+              obj_detect_state = ORIENT_VEH;
+            }
+          }
+          break;
+        case ORIENT_VEH:
+        //
+          if(veh_direction == 0)
+          {
+            obj_detect_state = IDLE;
+          } else if(veh_direction > 0)
+          {
+            // ROTATE LEFT
+            veh_direction -= 1;
+            set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_LEFT);
+            obj_detect_state = OBJECT_SIDE;
+          } else 
+          {
+            // ROTATE RIGHT
+            veh_direction += 1;
+            set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_RIGHT);
+            obj_detect_state = OBJECT_SIDE;
+          }
+          break;
+        default:
+          break;
 
 
+      }
     }
-    osDelay(100);
+    osDelay(10);
   }
 }
 

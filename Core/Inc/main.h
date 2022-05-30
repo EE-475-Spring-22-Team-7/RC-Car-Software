@@ -78,7 +78,7 @@ typedef struct {
 
 typedef struct {
   vehicle_direction command_direction;
-  uint16_t command_distance;
+  float command_distance;
   vehicle_speed command_speed;
 } command_HandleTypeDef;
 
@@ -123,6 +123,8 @@ void Error_Handler(void);
 #define PDM_OUT_GPIO_Port GPIOC
 #define B1_Pin GPIO_PIN_0
 #define B1_GPIO_Port GPIOA
+#define ENCODER_RIGHT_Pin GPIO_PIN_1
+#define ENCODER_RIGHT_GPIO_Port GPIOA
 #define ZS_040_BLUETOOTH_TX_Pin GPIO_PIN_2
 #define ZS_040_BLUETOOTH_TX_GPIO_Port GPIOA
 #define ZS_040_BLUETOOTH_RX_Pin GPIO_PIN_3
@@ -145,16 +147,14 @@ void Error_Handler(void);
 #define MOTORS_LEFT_H1_GPIO_Port GPIOE
 #define MOTORS_LEFT_H2_Pin GPIO_PIN_8
 #define MOTORS_LEFT_H2_GPIO_Port GPIOE
-#define ENCODER1_Pin GPIO_PIN_9
-#define ENCODER1_GPIO_Port GPIOE
-#define ENCODER2_Pin GPIO_PIN_10
-#define ENCODER2_GPIO_Port GPIOE
 #define MOTORS_RIGHT_H1_Pin GPIO_PIN_12
 #define MOTORS_RIGHT_H1_GPIO_Port GPIOE
 #define MOTORS_RIGHT_H2_Pin GPIO_PIN_13
 #define MOTORS_RIGHT_H2_GPIO_Port GPIOE
 #define CLK_IN_Pin GPIO_PIN_10
 #define CLK_IN_GPIO_Port GPIOB
+#define ENCODER_LEFT_Pin GPIO_PIN_11
+#define ENCODER_LEFT_GPIO_Port GPIOB
 #define IR_RIGHT_B_Pin GPIO_PIN_12
 #define IR_RIGHT_B_GPIO_Port GPIOB
 #define IR_RIGHT_F_Pin GPIO_PIN_13

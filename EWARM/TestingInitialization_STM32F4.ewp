@@ -3224,6 +3224,9 @@
           <name>$PROJ_DIR$\..\Core\Src\freertos.c</name>
         </file>
         <file>
+          <name>$PROJ_DIR$/../Core/Src/dma.c</name>
+        </file>
+        <file>
           <name>$PROJ_DIR$\..\Core\Src\tim.c</name>
         </file>
         <file>

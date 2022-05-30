@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "dma.h"
 #include "tim.h"
 #include "usart.h"
 #include "usb_otg.h"
@@ -36,6 +37,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define numval 6
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,7 +48,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+extern uint32_t riseData[numval];
+extern uint32_t left_riseData[numval];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -90,8 +93,10 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USB_OTG_FS_HCD_Init();
-  MX_USART2_UART_Init();
   MX_TIM3_Init();
+  MX_DMA_Init();
+  MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   
   // Motor PWM timer starts
@@ -99,6 +104,12 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_3);
   // RIGHT MOTORS
   HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_4);
+  
+  /* TIM2 Channel 2 is set to rising edge, so it will store the data in 'riseData' */
+  HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_2, riseData, numval);
+	
+  /* TIM2 Channel 4 is set to rising edge, so it will store the data in 'left_riseData' */
+  HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_4, left_riseData, numval);
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in freertos.c) */

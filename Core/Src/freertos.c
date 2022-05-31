@@ -684,56 +684,56 @@ void ir_sensor_state_machine(void const * argument)
             obj_detect_state = IDLE;
           } else 
           {
+            //keep previous rotation time for 90 to move back to
+            uint16_t rot_time_prev = rot_time; 
+            rot_time = 200; //set small rotation time
             if(right_sensor_triggered)
             {
               // ROTATE LEFT
-              set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_LEFT);
               veh_direction -= 1;
+              set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_LEFT);
             } else
             {
               // ROTATE RIGHT
-              set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_RIGHT);
               veh_direction += 1;
+              set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_RIGHT);
             }
+            rot_time = rot_time_prev;
             obj_detect_state = OBJECT_SIDE;
           }
-          osDelay(500);
+          osDelay(300);
           break;
         case OBJECT_SIDE:
           if(front_sensor_triggered)
           {
             obj_detect_state = OBJECT_AHEAD;
-          } else 
-          {
-            set_vehicle_motion(&leftmotors,&rightmotors, MOVE_FORWARD);
-            osDelay(1000);
-            // if no sensor is triggered orient the vehicle
-            if(left_sensor_triggered == false && right_sensor_triggered == false)
-            {
-              obj_detect_state = ORIENT_VEH;
-            }
+            osDelay(10);
+          } else {
+            set_vehicle_motion(&leftmotors,&rightmotors,MOVE_FORWARD);
+            osDelay(1000); //go forward for 1 seconds
+            obj_detect_state = ORIENT_VEH;
           }
-          osDelay(10);
           break;
         case ORIENT_VEH:
-        //
-          if(veh_direction == 0)
+          uint16_t rot_time_prev = rot_time; 
+          rot_time = 200; //set small rotation time
+          // if we are pretty close to straight call it good
+          if(veh_direction < 2 & veh_direction > -2)
           {
             obj_detect_state = IDLE;
-          } else if(veh_direction > 0)
+          } else if(veh_direction < 0)
           {
-            // ROTATE LEFT
-            veh_direction -= 1;
-            set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_LEFT);
-            obj_detect_state = OBJECT_SIDE;
-          } else 
-          {
-            // ROTATE RIGHT
             veh_direction += 1;
             set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_RIGHT);
             obj_detect_state = OBJECT_SIDE;
+          } else
+          {
+            veh_direction -= 1;
+            set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_LEFT);
+            obj_detect_state = OBJECT_SIDE;
           }
-          osDelay(500);
+          rot_time = rot_time_prev;
+          osDelay(300);
           break;
         default:
           break;

@@ -46,8 +46,8 @@
 
 // definition of vehicles speeds in meters/sec
 // *NOTE!! Ensure these values < max speed
-#define SLOW_VEHICLE_SPEED      7
-#define MEDIUM_VEHICLE_SPEED    9
+#define SLOW_VEHICLE_SPEED      8
+#define MEDIUM_VEHICLE_SPEED    10
 #define FAST_VEHICLE_SPEED      12
 
 // stuff for photoelectric encoder sensors
@@ -69,6 +69,8 @@ bool front_sensor_triggered = false;
 bool fall_sensor_triggered = false;
 bool left_sensor_triggered = false;
 bool right_sensor_triggered = false;
+bool AI_mutex = false;
+bool halt_AI = false;
 sys_state system_status = NORMAL;
 int veh_direction = 0;
 
@@ -381,7 +383,22 @@ void StartVoiceCommandTask(void const * argument)
         
         break;
       case AI:
-        // do nothing
+        // decode message into struct 
+        ptcommand = (command_HandleTypeDef *)data_receive;
+        command.command_direction       = ptcommand->command_direction;
+        command.command_distance        = ptcommand->command_distance;
+        command.command_speed           = ptcommand->command_speed;        
+          
+          // send pointer to struct not struct itself
+        if(command.command_direction == HALT && AI_mutex== false)
+        {
+          AI_mutex = true;
+          osMessagePut(myCommandQueue01Handle, (uint32_t)ptcommand, 10);
+          system_status = NORMAL;
+          obj_detect_state = IDLE;
+          veh_direction = 0;
+          AI_mutex = false;
+        }
         break;
       case FAULT:
         // do nothing
@@ -422,8 +439,8 @@ void StartvehicleMotion_PIDControl(void const * argument)
   // PID Control and distance tracking stuff
   bool track_distance = false;
   float linear_velocity = 0.0;
-  float REF_VAL = 0.0;
-  float PREVIOUS_REF_VAL = 0.0;  
+  float REF_VAL = (float)SLOW_VEHICLE_SPEED;
+  float PREVIOUS_REF_VAL = REF_VAL;  
   float distance_travelled = 0.0;
   float gain_array[] = {1.0,0.0,0.0,0.0};
   float delta_t = (float)SENSOR_SAMPLING_TIME;
@@ -652,13 +669,14 @@ void ir_sensor_state_machine(void const * argument)
   for(;;)
   {
     // if we are rotating then skip the object detection state until we aren't rotating
-    if(leftmotors.motors_dir == rightmotors.motors_dir)
+    if(AI_mutex == false)
     {
+      AI_mutex = true;
       switch(obj_detect_state)
       {
         case IDLE:
           veh_direction = 0;
-          if(front_sensor_triggered)
+          if(front_sensor_triggered && (leftmotors.motors_dir != HALTED && rightmotors.motors_dir != HALTED))
           {
             system_status = AI;
             if(fall_sensor_triggered)
@@ -666,13 +684,12 @@ void ir_sensor_state_machine(void const * argument)
               set_vehicle_motion(&leftmotors,&rightmotors,HALT);
             } else {
               obj_detect_state = OBJECT_AHEAD;
-              osThreadSuspend(voiceCommandHandle);
             }
           } else 
           {
             system_status = NORMAL;
-            osThreadResume(voiceCommandHandle);
           }
+          AI_mutex = false;
           osDelay(10);
           break;
         case OBJECT_AHEAD:
@@ -701,15 +718,18 @@ void ir_sensor_state_machine(void const * argument)
             rot_time = rot_time_prev;
             obj_detect_state = OBJECT_SIDE;
           }
+          AI_mutex = false;
           osDelay(300);
           break;
         case OBJECT_SIDE:
           if(front_sensor_triggered)
           {
             obj_detect_state = OBJECT_AHEAD;
+            AI_mutex = false;
             osDelay(10);
           } else {
             set_vehicle_motion(&leftmotors,&rightmotors,MOVE_FORWARD);
+            AI_mutex = false;
             osDelay(1000); //go forward for 1 seconds
             obj_detect_state = ORIENT_VEH;
           }
@@ -718,7 +738,7 @@ void ir_sensor_state_machine(void const * argument)
           uint16_t rot_time_prev = rot_time; 
           rot_time = 200; //set small rotation time
           // if we are pretty close to straight call it good
-          if(veh_direction < 2 & veh_direction > -2)
+          if(veh_direction == 0)
           {
             obj_detect_state = IDLE;
           } else if(veh_direction < 0)
@@ -733,9 +753,11 @@ void ir_sensor_state_machine(void const * argument)
             obj_detect_state = OBJECT_SIDE;
           }
           rot_time = rot_time_prev;
+          AI_mutex = false;
           osDelay(300);
           break;
         default:
+          AI_mutex = false;
           break;
 
 

@@ -43,7 +43,7 @@ typedef enum direction{
 }direction;
 
 typedef enum veh_object_detect_state{
-  FAULT,
+  VEH_FAULT,
   IDLE,
   OBJECT_AHEAD,
   OBJECT_SIDE,
@@ -51,7 +51,6 @@ typedef enum veh_object_detect_state{
 } obj_detection_state;
 
 typedef enum object_side{
-  FAULT,
   NOT_DETECTED,
   FRONT_IR_DETECTED,
   BOTH_IR_DETECTED,

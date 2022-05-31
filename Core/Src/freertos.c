@@ -70,7 +70,7 @@ bool fall_sensor_triggered = false;
 bool left_sensor_triggered = false;
 bool right_sensor_triggered = false;
 sys_state system_status = NORMAL;
-car_direction = 0; // when direction == 0 we are heading in correct direction
+int veh_direction = 0;
 
 vehicle_direction vehicle_motion_dir = HALT;
 obj_detection_state obj_detect_state = IDLE;
@@ -657,6 +657,7 @@ void ir_sensor_state_machine(void const * argument)
       switch(obj_detect_state)
       {
         case IDLE:
+          veh_direction = 0;
           if(front_sensor_triggered)
           {
             system_status = AI;
@@ -665,13 +666,14 @@ void ir_sensor_state_machine(void const * argument)
               set_vehicle_motion(&leftmotors,&rightmotors,HALT);
             } else {
               obj_detect_state = OBJECT_AHEAD;
-              osThreadSuspend(demoForwardHandle);
+              osThreadSuspend(voiceCommandHandle);
             }
           } else 
           {
             system_status = NORMAL;
-            osThreadResume(demoForwardHandle);
+            osThreadResume(voiceCommandHandle);
           }
+          osDelay(10);
           break;
         case OBJECT_AHEAD:
           // HALT
@@ -695,6 +697,7 @@ void ir_sensor_state_machine(void const * argument)
             }
             obj_detect_state = OBJECT_SIDE;
           }
+          osDelay(500);
           break;
         case OBJECT_SIDE:
           if(front_sensor_triggered)
@@ -703,12 +706,14 @@ void ir_sensor_state_machine(void const * argument)
           } else 
           {
             set_vehicle_motion(&leftmotors,&rightmotors, MOVE_FORWARD);
+            osDelay(1000);
             // if no sensor is triggered orient the vehicle
             if(left_sensor_triggered == false && right_sensor_triggered == false)
             {
               obj_detect_state = ORIENT_VEH;
             }
           }
+          osDelay(10);
           break;
         case ORIENT_VEH:
         //
@@ -728,6 +733,7 @@ void ir_sensor_state_machine(void const * argument)
             set_vehicle_motion(&leftmotors,&rightmotors,ROTATE_RIGHT);
             obj_detect_state = OBJECT_SIDE;
           }
+          osDelay(500);
           break;
         default:
           break;
@@ -735,7 +741,6 @@ void ir_sensor_state_machine(void const * argument)
 
       }
     }
-    osDelay(10);
   }
 }
 
@@ -855,6 +860,8 @@ void forward_vehicle(motors * motors_set1, motors * motors_set2)
   // Set both sets of motors to forward motion
   set_motors_direction(motors_set1,FORWARD);
   set_motors_direction(motors_set2,FORWARD);
+  
+  
 }
 
 /** @brief set the vehicles motion to reverse

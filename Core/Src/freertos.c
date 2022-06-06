@@ -46,15 +46,15 @@
 
 // definition of vehicles speeds in meters/sec
 // *NOTE!! Ensure these values < max speed
-#define SLOW_VEHICLE_SPEED      8
-#define MEDIUM_VEHICLE_SPEED    10
-#define FAST_VEHICLE_SPEED      12
+#define SLOW_VEHICLE_SPEED      6
+#define MEDIUM_VEHICLE_SPEED    8
+#define FAST_VEHICLE_SPEED      10
 
 // stuff for photoelectric encoder sensors
-#define TIMCLOCK   84000000
-#define PSCALAR    0
-#define numval     6
-#define SENSOR_SAMPLING_TIME 50
+#define TIMCLOCK                84000000
+#define PSCALAR                 0
+#define numval                  10
+#define SENSOR_SAMPLING_TIME    50
 
 /* USER CODE END PD */
 
@@ -99,6 +99,10 @@ float right_encoder_risetime = 0;
 float left_encoder_risetime = 0;
 int8_t isMeasured = 0;
 
+// PID stuff
+float MEA_VAL_rightmotors = 0.0;
+float MEA_VAL_leftmotors = 0.0;
+bool message_sent = false;
 
 // VC stuff
 bool VCmessage_received = false;
@@ -140,7 +144,6 @@ void set_motorDuty(float u, float voltage_range[], motors * motors_set);
 void read_EncoderSensors(float * left, float * right);
 
 void leds_flash(led_color color, uint32_t pulses,uint32_t delay);
-uint32_t VCmessages_8to32bit(uint8_t messages[],int8_t start_ind, int8_t stop_ind);
 
 void ir_sensor_detection(void const * argument);
 void ir_sensor_state_machine(void const* argument);
@@ -193,6 +196,13 @@ void MX_FREERTOS_Init(void) {
   rightmotors.motors_GPIOx = GPIOE;
   rightmotors.H1_GPIO_Pin = MOTORS_RIGHT_H1_Pin;
   rightmotors.H2_GPIO_Pin = MOTORS_RIGHT_H2_Pin;
+
+  /* TIM2 Channel 2 is set to rising edge, so it will store the data in 'riseData' */
+  HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_2, riseData, numval);
+	
+  /* TIM2 Channel 4 is set to rising edge, so it will store the data in 'left_riseData' */
+  HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_4, left_riseData, numval);
+
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -294,23 +304,17 @@ void StartVehicleMotionTask(void const * argument)
   osEvent message_event;
   command_HandleTypeDef * ptcommand_message;
   vehicle_direction command_veh_direction;
-  
-  //osEvent event;
-  
+
   for(;;)
   {
     
     // task only executes if message is received 
     message_event = osMessageGet(myCommandQueue01Handle,osWaitForever);
-
     if(message_event.status == osEventMessage){
       // message received is pointer to struct not struct itself
       ptcommand_message = (command_HandleTypeDef *)message_event.value.v;
       
       command_veh_direction = ptcommand_message->command_direction;
-//      printf(" ------ vehicle motion -------\n");
-//      printf(" %i \n", command_veh_direction);
-//      printf(" ------------------------------\n ");
       
       // speed and distance commands only affect forward/reverse motion
       if((command_veh_direction == MOVE_FORWARD) || \
@@ -321,6 +325,7 @@ void StartVehicleMotionTask(void const * argument)
         
         // send speed/distance commands to task
         osMessagePut(myCommandQueue02Handle,message_event.value.v,10);
+        message_sent = true;
       }
       
       set_vehicle_motion(&leftmotors,&rightmotors, command_veh_direction);
@@ -347,7 +352,7 @@ void StartVoiceCommandTask(void const * argument)
 
   
   // receive first VC message. the rest are received from UART callback
-  if(HAL_UART_Receive_IT(&huart2,data_receive,12) == HAL_OK){
+  if(HAL_UART_Receive_IT(&huart2,data_receive,sizeof(data_receive)/sizeof(data_receive[0])) == HAL_OK){
     VCmessage_received = true;
   }
   
@@ -359,7 +364,7 @@ void StartVoiceCommandTask(void const * argument)
 
       switch(system_status){
       case NORMAL:
-        // decode message into struct 
+        // decode bluetooth/UART message into command type struct 
         ptcommand = (command_HandleTypeDef *)data_receive;
 
         command.command_direction       = ptcommand->command_direction;
@@ -369,18 +374,9 @@ void StartVoiceCommandTask(void const * argument)
         // send pointer to struct not struct itself
         osMessagePut(myCommandQueue01Handle, (uint32_t)ptcommand, 10); 
         
-        
-//        printf("command direction = %i\n",ptcommand->command_direction);
-//        printf("command distance = %f\n",ptcommand->command_distance);
-//        printf("command speed = %i\n",ptcommand->command_speed);
-//        printf("---------------\n");
-        
-
-        
+        // indicate VC successfully received
         leds_flash(GREEN,2,100);
-        
-        VCmessage_received = false;
-        
+
         break;
       case AI:
         // decode message into struct 
@@ -389,7 +385,7 @@ void StartVoiceCommandTask(void const * argument)
         command.command_distance        = ptcommand->command_distance;
         command.command_speed           = ptcommand->command_speed;        
           
-          // send pointer to struct not struct itself
+        // send pointer to struct not struct itself
         if(command.command_direction == HALT && AI_mutex== false)
         {
           AI_mutex = true;
@@ -401,19 +397,20 @@ void StartVoiceCommandTask(void const * argument)
         }
         break;
       case FAULT:
-        // do nothing
+        leds_flash(RED,3,100);
         break;
       default:
-        // do nothing
+        leds_flash(RED,3,100);
         break;
       }
+      
+      VCmessage_received = false;
     }
     else {
-      // do some kind of error handling 
-
+      // do nothing. no message received
     }
     
-    osDelay(1);
+    osDelay(10);
   }
   /* USER CODE END StartVoiceCommandTask */
 }
@@ -433,148 +430,133 @@ void StartvehicleMotion_PIDControl(void const * argument)
   // Queue message and command stuff
   osEvent message_event;
   command_HandleTypeDef * ptcommand_message;
-  float command_distance;
-  vehicle_speed command_speed;
+  float loc_command_distance;
+  vehicle_speed loc_command_speed;
 
   // PID Control and distance tracking stuff
   bool track_distance = false;
   float linear_velocity = 0.0;
-  float REF_VAL = (float)SLOW_VEHICLE_SPEED;
+  float REF_VAL = (float)SLOW_VEHICLE_SPEED;    // desired vehicle speed
   float PREVIOUS_REF_VAL = REF_VAL;  
   float distance_travelled = 0.0;
-  float gain_array[] = {1.0,0.0,0.0,0.0};
-  float delta_t = (float)SENSOR_SAMPLING_TIME;
-  float sat_limits[] = {0.0,12.0};
-  float I_error_leftmotors = 0.0;
+  float gain_array[] = {1.0,10.0,0.0,2.5};       // PID gains [Kff, Kp, Ki, Kd]
+  float delta_t = (float)SENSOR_SAMPLING_TIME;  // sensor sampling rate in ms
+  float sat_limits[] = {0.0,12.0};              // min and max voltages to motors
+  float I_error_leftmotors = 0.0;               // integral error
   float I_error_rightmotors = 0.0;
-  float MEA_VAL_previous_leftmotors = 0.0;
+  float MEA_VAL_previous_leftmotors = 0.0;      // previous measured rotation speed
   float MEA_VAL_previous_rightmotors = 0.0;
-  float MEA_VAL_leftmotors = 0.0;
-  float MEA_VAL_rightmotors = 0.0;
-  float pid_val_leftmotors;
+  float pid_val_leftmotors;                     // total PID value
   float pid_val_rightmotors;
-  float control_input_leftmotors = 0.0;
+  float control_input_leftmotors = 0.0;         // signal to motor driver board
   float control_input_rightmotors = 0.0;
   
   for(;;)
   {
   
-    message_event = osMessageGet(myCommandQueue02Handle,osWaitForever);
-    if(message_event.status == osEventMessage){
-      // everytime we get a new command we re-iniatilize everything. 
-      // the system is currently set up to receive a new command at any point
-      // in time even when it hasnt finished executing the previous command
-      
-      // get pointer message of command struct
-      ptcommand_message = (command_HandleTypeDef *)message_event.value.v;
-      
-      command_distance = ptcommand_message->command_distance;
-      command_speed = ptcommand_message->command_speed;
-      
-//      printf("----------- in pid task ---------\n");
-//      printf("distance requested = %f\n",command_distance);
-//      printf("speed requested = %i\n",command_speed);
-//      //printf("---------------------------------\n");
-      
-      
-      distance_travelled = 0;
-      if(command_distance != 0.0){
-        track_distance = true;
-      }
-      else {
-        track_distance = false;
-      }
-      
-//      printf("track distance = ");
-//      printf(track_distance ? "true\n" : "false\n");
-//      //printf("---------------------------------\n");
+    if(message_sent){
+      message_event = osMessageGet(myCommandQueue02Handle,osWaitForever);
+      if(message_event.status == osEventMessage){
+        // everytime we get a new command we re-iniatilize everything. 
+        // the system is currently set up to receive a new command at any point
+        // in time even when it hasnt finished executing the previous command
+        
+        // get pointer message of command struct
+        ptcommand_message = (command_HandleTypeDef *)message_event.value.v;
+        
+        loc_command_distance = ptcommand_message->command_distance;
+        loc_command_speed = ptcommand_message->command_speed;
+        //convert command distance to units of meters
+        loc_command_distance = loc_command_distance / 3.281;
+        
+        distance_travelled = 0.0;
+        // command distance default is 0.0 if not specified by VC
+        if(loc_command_distance != 0.0){
+          track_distance = true;
+        }
+        else {
+          track_distance = false;
+        }
 
-      I_error_leftmotors = 0.0;
-      I_error_rightmotors = 0.0;
-      MEA_VAL_previous_leftmotors = 0.0;
-      MEA_VAL_previous_rightmotors = 0.0;
-      
-      switch(command_speed){
-      case INVALID_SPEED:
-        REF_VAL = PREVIOUS_REF_VAL;
-        break;
-      case SLOW:
-        REF_VAL = SLOW_VEHICLE_SPEED;
-        PREVIOUS_REF_VAL = REF_VAL;
-        break;
-      case MEDIUM:
-        REF_VAL = MEDIUM_VEHICLE_SPEED;
-        PREVIOUS_REF_VAL = REF_VAL;
-        break;
-      case FAST:
-        REF_VAL = FAST_VEHICLE_SPEED;
-        PREVIOUS_REF_VAL = REF_VAL;
-        break;
-      case NO_UPDATE:
-        REF_VAL = PREVIOUS_REF_VAL;
-      default:
-        REF_VAL = PREVIOUS_REF_VAL;
+        I_error_leftmotors = 0.0;
+        I_error_rightmotors = 0.0;
+        MEA_VAL_leftmotors = 0.0;
+        MEA_VAL_rightmotors = 0.0;
+        MEA_VAL_previous_leftmotors = 0.0;
+        MEA_VAL_previous_rightmotors = 0.0;
+        
+        switch(loc_command_speed){
+        case INVALID_SPEED:
+          REF_VAL = PREVIOUS_REF_VAL;
+          break;
+        case SLOW:
+          REF_VAL = SLOW_VEHICLE_SPEED;
+          PREVIOUS_REF_VAL = REF_VAL;
+          break;
+        case MEDIUM:
+          REF_VAL = MEDIUM_VEHICLE_SPEED;
+          PREVIOUS_REF_VAL = REF_VAL;
+          break;
+        case FAST:
+          REF_VAL = FAST_VEHICLE_SPEED;
+          PREVIOUS_REF_VAL = REF_VAL;
+          break;
+        case NO_UPDATE:
+          REF_VAL = PREVIOUS_REF_VAL;
+        default:
+          REF_VAL = PREVIOUS_REF_VAL;
+        } 
       }
-      
-//      printf("REF Val = %.2f \n",REF_VAL);
-//      printf("---------------------------------\n");
-//      
-    }
-    else {
-      // some sort of error handling
+      else if((message_event.status == osErrorValue) || (message_event.status == osErrorOS))
+      {
+        // some sort of error handling
+        set_vehicle_motion(&leftmotors,&rightmotors,HALT);
+        system_status = FAULT;
+        leds_flash(RED,3,50);
+      }
+
+      message_sent = false;
     }
     
-//    if(system_status != FAULT){
-//    // read encoder sensor here in rad/sec
-//      read_EncoderSensors(&MEA_VAL_leftmotors,&MEA_VAL_rightmotors);
-//      
-//    // do PID control stuff here where command vehicle speed is input
+    if(((command.command_direction == MOVE_FORWARD) || (command.command_direction == \
+      MOVE_REVERSE)) && (system_status != FAULT)){
+
+      // do PID control stuff here where command vehicle speed is input
+      // ** left encoder sensor currently not working. **
+      
 //      pid_val_leftmotors = PID_controller(REF_VAL,MEA_VAL_leftmotors,gain_array,\
 //        &I_error_leftmotors,MEA_VAL_previous_leftmotors,delta_t);
-//      pid_val_rightmotors = PID_controller(REF_VAL,MEA_VAL_rightmotors,gain_array,\
-//        &I_error_rightmotors,MEA_VAL_previous_rightmotors,delta_t);
-//      
-//      MEA_VAL_previous_rightmotors = MEA_VAL_rightmotors;
-//      MEA_VAL_previous_leftmotors = MEA_VAL_leftmotors;
-//      
-//      control_input_leftmotors = REF_VAL * gain_array[0] + pid_val_leftmotors;
-//      control_input_rightmotors = REF_VAL * gain_array[0] + pid_val_rightmotors;
-//      
-//      control_input_leftmotors = controller_Saturation(control_input_leftmotors,sat_limits);
-//      control_input_rightmotors = controller_Saturation(control_input_rightmotors,sat_limits);
-//      
-//      set_motorDuty(control_input_leftmotors,sat_limits,&leftmotors);
-//      set_motorDuty(control_input_rightmotors,sat_limits,&rightmotors);
-//
-//      if(track_distance){
-//        // just go off one RPM sensor reading
-//        // assuming wheel angular velocity in rad/sec
-//        // assumes no tire slip
-//        linear_velocity = MEA_VAL_leftmotors * wheel_radius;
-//        distance_travelled = distance_travelled + (uint16_t)(linear_velocity * delta_t);
-//        
-//        if(distance_travelled >= command_distance){
-//          set_vehicle_motion(&leftmotors,&rightmotors,HALT);
-//        }
-//      }
-    
-    set_motorDuty(REF_VAL,sat_limits,&leftmotors);
-    set_motorDuty(REF_VAL,sat_limits,&rightmotors);
-          if(track_distance){
-        // just go off one RPM sensor reading
-        // assuming wheel angular velocity in rad/sec
-        // assumes no tire slip
-        linear_velocity = MEA_VAL_leftmotors * wheel_radius;
-        distance_travelled = distance_travelled + (uint16_t)(linear_velocity * delta_t);
-        
-        if(distance_travelled >= command_distance){
-          set_vehicle_motion(&leftmotors,&rightmotors,HALT);
-        }
+      pid_val_rightmotors = PID_controller(REF_VAL,MEA_VAL_rightmotors,gain_array,\
+        &I_error_rightmotors,MEA_VAL_previous_rightmotors,delta_t);
       
+      MEA_VAL_previous_rightmotors = MEA_VAL_rightmotors;
+//      MEA_VAL_previous_leftmotors = MEA_VAL_leftmotors;
+      
+//      control_input_leftmotors = REF_VAL * gain_array[0] + pid_val_leftmotors;
+      control_input_rightmotors = REF_VAL * gain_array[0] + pid_val_rightmotors;
+      
+//      control_input_leftmotors = controller_Saturation(control_input_leftmotors,sat_limits);
+      control_input_rightmotors = controller_Saturation(control_input_rightmotors,sat_limits);
+      
+//      set_motorDuty(control_input_leftmotors,sat_limits,&leftmotors);
+      set_motorDuty(control_input_rightmotors,sat_limits,&leftmotors);
+      set_motorDuty(control_input_rightmotors,sat_limits,&rightmotors);
+    }
+
+
+    if(track_distance){
+      // just go off one RPM sensor reading
+      linear_velocity = MEA_VAL_rightmotors * wheel_radius;
+      distance_travelled = distance_travelled + (linear_velocity * (delta_t/1000));
+      
+      if(distance_travelled >= loc_command_distance){
+        set_vehicle_motion(&leftmotors,&rightmotors,HALT);
+        track_distance = false;
+      }
+
     }
     
-    //osDelay(SENSOR_SAMPLING_TIME);
-    osDelay(15);
+    osDelay(SENSOR_SAMPLING_TIME);
   }
   /* USER CODE END StartvehicleMotion_PIDControl */
 }
@@ -605,10 +587,11 @@ void StartstatusLEDSTask(void const * argument)
       leds_flash(ORANGE,1,AI_LED_DELAY_TIME);
       break;
     default:
-      leds_flash(GREEN,1,NORMAL_LED_DELAY_TIME);
+      leds_flash(RED,1,FAULT_LED_DELAY_TIME);
       break;
     }
     
+    // Actual osDelay specified by LED delay times
     osDelay(1);
   }
   /* USER CODE END StartstatusLEDSTask */
@@ -637,6 +620,8 @@ void StartpidEncoderTask(void const * argument)
       HAL_TIM_IC_Start_DMA(&htim2, TIM_CHANNEL_4, left_riseData, numval);
 
       isMeasured = 0;
+
+      read_EncoderSensors(&MEA_VAL_leftmotors,&MEA_VAL_rightmotors);
     }
     
     osDelay(SENSOR_SAMPLING_TIME);
@@ -925,8 +910,8 @@ void rotate_right_vehicle(motors * motors_set1, motors * motors_set2)
   set_motor_speed(motors_set2,default_rot_pulse);
   
   // Set sets of motors to opposite directions
-  set_motors_direction(motors_set1,FORWARD);
-  set_motors_direction(motors_set2,REVERSE);  
+  set_motors_direction(motors_set1,REVERSE);
+  set_motors_direction(motors_set2,FORWARD);  
   
   // Run for set time resulting in 90 deg turn
   osDelay(rot_time);
@@ -955,8 +940,8 @@ void rotate_left_vehicle(motors * motors_set1, motors * motors_set2)
   set_motor_speed(motors_set2,default_rot_pulse);
   
   // Set sets of motors to opposite directions
-  set_motors_direction(motors_set1,REVERSE);
-  set_motors_direction(motors_set2,FORWARD);  
+  set_motors_direction(motors_set1,FORWARD);
+  set_motors_direction(motors_set2,REVERSE);  
   
   // Run for set time resulting in 90 deg turn
   osDelay(rot_time);
@@ -995,12 +980,10 @@ void set_vehicle_motion(motors * motors_set1, motors * motors_set2, vehicle_dire
       reverse_vehicle(motors_set1,motors_set2);
       break;
     case ROTATE_RIGHT:
-      //rotate_right_vehicle(motors_set1,motors_set2);
-      rotate_left_vehicle(motors_set1,motors_set2);
+      rotate_right_vehicle(motors_set1,motors_set2);
       break;
     case ROTATE_LEFT:
-      //rotate_left_vehicle(motors_set1,motors_set2);
-      rotate_right_vehicle(motors_set1,motors_set2);
+      rotate_left_vehicle(motors_set1,motors_set2);
       break;
     case U_TURN:
       rotate_right_vehicle(motors_set1,motors_set2);
@@ -1097,111 +1080,100 @@ void set_motorDuty(float u, float voltage_range[], motors * motors_set)
  */
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-  // Tim Channel 2 is right motors
-  // time channel 4 is left motors
-  
-  // If the Interrupt is triggered by 1st Channel
+
+  // If the Interrupt is triggered by 2nd Channel
   if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2){
     rightriseCaptured = 1;
   }
 
-  // If the Interrupt is triggered by 2nd Channel
-  if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4){
-     leftriseCaptured = 1;
-  }
+  // If the Interrupt is triggered by 4th Channel
+//  if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4){
+//     leftriseCaptured = 1;
+//  }
 
 
   /* Rest of the calculations will be done,
    * once both the DMAs have finished capturing enough data */
-  if (rightriseCaptured && leftriseCaptured)
+  if(rightriseCaptured)
   {
-
     // calculate the reference clock
     float refClock = TIMCLOCK/(PSCALAR+1);
 
-    int indxr = 0;
-    int indxl = 0;
+    uint16_t indxr = 0;
 
-    int countr = 0;
-    int countl = 0;
+    uint16_t countr = 0;
 
     float rightriseavg = 0.0;
-    float leftriseavg = 0.0;
     
-    /* In case of high Frequencies, the DMA sometimes captures 0's in the beginning.
-     * increment the index until some useful data shows up
-     */
-    while ((riseData[indxr] == 0) && (indxr < (numval-1))){
-      indxr++;
-    }
-
-    /* Again at very high frequencies, sometimes the values don't change
-     * So we will wait for the update among the values
-     */
-    while (((MIN((riseData[indxr+1]-riseData[indxr]), (riseData[indxr+2]-riseData[indxr+1]))) == 0) && \
-      (indxr < (numval-1))){
-      indxr++;
-    }
-
-    /* Assign a start value to riseavg */
-    if(indxr < (numval-1)){
-      rightriseavg += MIN((riseData[indxr+1]-riseData[indxr]), (riseData[indxr+2]-riseData[indxr+1]));
-      indxr++;
-      countr++;
-    }
 
     /* start adding the values to the riseavg */
-    while (indxr < (numval))
+    while (indxr < (numval-1))
     {
-      rightriseavg += MIN((riseData[indxr+1]-riseData[indxr]), rightriseavg/countr);
+      
+      if( (riseData[indxr] > riseData[indxr+1]) && (indxr <= (numval-3))){
+        indxr += 2;
+      }
+      
+      rightriseavg += (riseData[indxr+1] - riseData[indxr]);
       countr++;
-      indxr++;
+      indxr += 2;
     }
-    
-    
-    
-    // Repeat everything for the left side
-    while ((left_riseData[indxl] == 0) && (indxl < (numval-1))){
-      indxl++;
-    }
-
-    while (((MIN((left_riseData[indxl+1]-left_riseData[indxl]), (left_riseData[indxl+2]-left_riseData[indxl+1]))) == 0) && \
-      (indxl < (numval-1))){
-      indxl++;
-    }
-
-    if(indxl < (numval-1)){
-      leftriseavg += MIN((left_riseData[indxl+1]-left_riseData[indxl]), (left_riseData[indxl+2]-left_riseData[indxl+1]));
-      indxl++;
-      countl++;
-    }
-
-    while (indxl < (numval))
-    {
-      leftriseavg += MIN((left_riseData[indxl+1]-left_riseData[indxl]), leftriseavg/countl);
-      countl++;
-      indxl++;
-    }
-
     
     /* Find the average riseavg, the average time between the rising edges */
     rightriseavg = rightriseavg/countr;
-    leftriseavg = leftriseavg/countl;
-    right_encoder_risetime = rightriseavg;
-    left_encoder_risetime = leftriseavg;
+    right_encoder_risetime = rightriseavg/refClock;
 
     /* Calculate Frequency
      * Freq = Clock/(time taken between 2 Rise)
      */
     right_frequency = (refClock/(float)rightriseavg);
-    left_frequency = (refClock/(float)leftriseavg);
 
     rightriseCaptured = 0;
-    leftriseCaptured = 0;
 
     isMeasured = 1;
-
   }
+  
+
+  // Left encoder sensor currently not working. Uncomment once fixed.
+  
+//  if(leftriseCaptured)
+//  {
+//
+//    // calculate the reference clock
+//    float refClock = TIMCLOCK/(PSCALAR+1);
+//
+//    uint16_t indxl = 0;
+//
+//    uint16_t countl = 0;
+//
+//    float leftriseavg = 0.0;
+//    
+//    /* start adding the values to the riseavg */
+//    while (indxl < (numval-1))
+//    {
+//      
+//      if( (left_riseData[indxl] > left_riseData[indxl+1]) && (indxl <= (numval-3))){
+//        indxl += 2;
+//      }
+//      
+//      leftriseavg += (left_riseData[indxl+1] - left_riseData[indxl]);
+//      countl++;
+//      indxl += 2;
+//    }
+//    
+//    /* Find the average riseavg, the average time between the rising edges */
+//    leftriseavg = leftriseavg/countl;
+//    left_encoder_risetime = leftriseavg/refClock;
+//
+//    /* Calculate Frequency
+//     * Freq = Clock/(time taken between 2 Rise)
+//     */
+//    left_frequency = (refClock/(float)leftriseavg);
+//
+//    leftriseCaptured = 0;
+//
+//    isMeasured = 1;
+//  }    
 }
 
 
@@ -1218,8 +1190,16 @@ void read_EncoderSensors(float * left, float * right)
   float twopi_rad = 2 * 3.1416;
   float edge_edge_rad = twopi_rad / encoder_windows;
   
-  *left = edge_edge_rad / left_encoder_risetime;
+  if((rightmotors.motors_dir != HALTED) && (leftmotors.motors_dir != HALTED) \
+    && (right_encoder_risetime < 1000) && (left_encoder_risetime < 1000)){
+  //*left = edge_edge_rad / left_encoder_risetime;
   *right = edge_edge_rad / right_encoder_risetime;
+  //*right = 0.314159 / (right_encoder_risetime);
+  }
+  else {
+    *left = 0.0;
+    *right = 0.0;
+  }
 }
 
 /************* MISCEL. UTILITIES ***********************************************/
@@ -1269,32 +1249,6 @@ void leds_flash(led_color color, uint32_t pulses, uint32_t delay){
   }
 }
 
-/**
-  * Converts separate 8 bit messages (up to a max 4 bytes) from the BT module to a 
-  * single 32 bit word.
-  * @param messages[]: array that holds the 8bit messages
-  * @param start_ind: the first message in array to insert into word 
-  * @param stop_ind: the last message in array to insert into word
-  * @retval an unsigned 32 bit word
-  * @note the first message will end up at the leftmost of the resulting word
- */
-uint32_t VCmessages_8to32bit(uint8_t messages[],int8_t start_ind, int8_t stop_ind)
-{
-  if((start_ind < 0) || (stop_ind < 0)){
-    return (uint32_t)404;
-  }
-  
-  uint32_t leftmost;
-  uint32_t rightmost;
-  for(int8_t i = start_ind; i < stop_ind; i++){
-    leftmost = (uint32_t)messages[i];
-    leftmost = (leftmost << 8);
-    rightmost = (uint32_t)messages[i];
-    leftmost = (leftmost & rightmost);
-  }
-  
-  return leftmost;
-}
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) 
